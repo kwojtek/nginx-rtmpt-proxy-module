@@ -14,19 +14,19 @@ Download and unpack nginx source then cd to this directory. Next run command:
     make install
 
 ### Configuration 
-http {
-    server {
-        listen       EXTERNALIP:80;
+    http {
+        server {
+            listen       EXTERNALIP:80;
 
-	location ~ (^/fcs/ident2$|^/open/1$|^/idle/.*/.*$|^/send/.*/.*$|^/close/$) {
-            rtmpt_proxy on;
-            rtmpt_proxy_target TARGET-RTMP-SERVER.COM:1935;
-            rtmpt_proxy_ident EXTERNALIP;
-            add_header Cache-Control no-cache;
-            access_log off;
-        }    
+	    location ~ (^/fcs/ident2$|^/open/1$|^/idle/.*/.*$|^/send/.*/.*$|^/close/$) {
+                rtmpt_proxy on;
+                rtmpt_proxy_target TARGET-RTMP-SERVER.COM:1935;
+                rtmpt_proxy_ident EXTERNALIP;
+                add_header Cache-Control no-cache;
+                access_log off;
+            }    
+       }
     }
-}
 
 Directive 'location' fits all nessesery uri addresses for the rtmpt protocol. You can use other location for standard http requests.
 It is good practice to add header "Cache-Control no-cache" to disable caching in user browser and for me disabling access_log could keep clear your access log.
