@@ -16,6 +16,7 @@
 
 ngx_rtmpt_proxy_session_t  *ngx_rtmpt_proxy_sessions_global[RTMPT_HASHMAX];
 
+char ngx_rtmpt_proxy_intervals_def[]={0,0x01, 0x03, 0x05, 0x09, 0x11, 0x21, 0x41,0};
 
 
 static ngx_int_t
@@ -153,7 +154,9 @@ ngx_rtmpt_proxy_session_t
 	session->out_pool = NULL;
 	session->interval_check_time=0;
 	session->interval_check_att=0;
-	
+	session->interval_check_count=0;
+	session->interval_position=1;
+
 	put_session_in_hash(session);
 	
 	pc = ngx_pcalloc(pool, sizeof(ngx_peer_connection_t));

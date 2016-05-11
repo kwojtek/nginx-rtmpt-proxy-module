@@ -71,7 +71,7 @@ ngx_module_t  ngx_rtmpt_proxy_module = {
     NGX_HTTP_MODULE,                    /* module type */
     NULL,                               /* init master */
     NULL,                               /* init module */
-    NULL,         			/* init process */
+    NULL,         						/* init process */
     NULL,                               /* init thread */
     NULL,                               /* exit thread */
     NULL,                               /* exit process */
@@ -303,9 +303,7 @@ static void
 		return;
 	}
 	
-		
 	ngx_add_timer(&s->http_timer, 2000);
-	
 		
 	if (strncasecmp("/send/",r->uri.data,6) == 0) {
 		for (cl = in; cl; cl=cl->next) {
@@ -334,20 +332,24 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 	ngx_chain_t   				*out_chain;
 	ngx_http_request_t 			*r;
 	ngx_uint_t					os = 0;
-
+	time_t	check_time;
 
 	r=s->actual_request;
 	s->on_finish_send=NULL;	
+	
 	
 	if (s->chain_from_nginx) {		
 		ngx_chain_t *t;
 		ngx_http_cleanup_t *cuh;
 	
+		*s->chain_from_nginx->buf->pos=ngx_rtmpt_proxy_intervals_def[s->interval_position];
+		
+		
 		for (t=s->chain_from_nginx; t; t=t->next) {
 			os+=t->buf->last-t->buf->pos;
 			if (!t->next) t->buf->last_buf=1; else t->buf->last_buf=0;
 		}
-		out_chain = s->chain_from_nginx;	
+		out_chain = s->chain_from_nginx;
 		s->chain_from_nginx=NULL;
 		
 	
@@ -377,7 +379,7 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 			ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "Failed to allocate response one byte's buffer");
 			goto error;
 		}
-		*buffer = 1;
+		*buffer = ngx_rtmpt_proxy_intervals_def[s->interval_position];
 		os = 1;
 		
 		out_chain->next=NULL;
@@ -393,6 +395,33 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 	r->headers_out.status = NGX_HTTP_OK;
 	ngx_str_set(&r->headers_out.content_type, "application/x-fcs");
 	r->headers_out.content_length_n = os;
+	
+	
+	
+	time(&check_time);
+	if (s->interval_check_time != check_time) {
+		double d;
+		
+		if (s->interval_check_count) {
+			d=(double)s->interval_check_att/s->interval_check_count;
+			if (d > 0.4) {
+				if (ngx_rtmpt_proxy_intervals_def[s->interval_position+1]!=0) 
+					s->interval_position++;
+			} else if (d == 0) {
+				if (ngx_rtmpt_proxy_intervals_def[s->interval_position-1]!=0) 
+					s->interval_position--;
+			}
+		}
+				
+		s->interval_check_att = 0;
+		s->interval_check_count = 0;
+		s->interval_check_time=check_time;
+	}
+	
+	//if no data
+	if ( os == 1 ) s->interval_check_att++;
+	s->interval_check_count++;
+	
 	
 	ngx_http_send_header(r);
 	ngx_http_finalize_request(r, ngx_http_output_filter(r, out_chain));

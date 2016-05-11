@@ -10,6 +10,9 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+extern char ngx_rtmpt_proxy_intervals_def[];
+
+
 typedef struct ngx_rtmpt_proxy_session_s {
   ngx_buf_t 			*buffer_http;
   ngx_buf_t 			*buffer_rtmp;
@@ -19,6 +22,11 @@ typedef struct ngx_rtmpt_proxy_session_s {
   ngx_log_t				*log;
   
   ngx_str_t				name;
+  time_t				interval_check_time;
+  u_char				interval_check_att;
+  u_char				interval_check_count;
+  
+  u_char				interval_position;
   
   ngx_chain_t			*chain_from_http_request;
   

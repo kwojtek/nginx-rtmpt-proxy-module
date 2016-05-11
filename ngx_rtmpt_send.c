@@ -19,7 +19,6 @@ void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 	ngx_rtmpt_proxy_session_t           *s;
 	int 								n;
 	ngx_http_request_t					*r;
-	int									first_chain_created = 0;
 	
 	unsigned char 						buffer[8192];
 	
@@ -36,14 +35,15 @@ void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 	ngx_log_debug(NGX_LOG_DEBUG, s->log, 0,"rtmpt/read: enter into read function");
 	
 	while (true) {	
+		int	first_chain_created = 0;
+		
 		n = c->recv(c, buffer, 8192);
 
-	
 		ngx_log_debug1(NGX_LOG_DEBUG, s->log, 0, "rtmpt/read: received %i bytes", n);
 	
 		if (n>0) {
-		
 			ngx_chain_t	*chain, *new_chain;
+				
 			if (!s->out_pool) {
 				s->out_pool = ngx_create_pool(4096, s->log);
 				first_chain_created = 1;
@@ -78,12 +78,9 @@ void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 				return;
 			}
 			
-			if (first_chain_created) {
-				char one[1];
-				one[0]=1;			
-				chain->buf->last = ngx_cpymem(chain->buf->last, one, 1);
-			}
-		
+			//first byte will be overwritten in http response
+			chain->buf->last+=first_chain_created;
+			
 			chain->buf->last = ngx_cpymem(chain->buf->last, buffer, n);
 	
 		} else {
@@ -105,7 +102,6 @@ void ngx_rtmpt_send_chain_to_rtmp(ngx_event_t *wev) {
 	ngx_connection_t           	    *c;
 	ngx_rtmpt_proxy_session_t       *s;
 	int 							n;
-	FILE *f;
 	int sent=0;
 	int size=0;
 	ngx_chain_t *ch;
