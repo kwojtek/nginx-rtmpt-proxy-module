@@ -151,6 +151,8 @@ ngx_rtmpt_proxy_session_t
 	session->chain_from_http_request = NULL;   
 	session->chain_from_nginx = NULL;
 	session->out_pool = NULL;
+	session->interval_check_time=0;
+	session->interval_check_att=0;
 	
 	put_session_in_hash(session);
 	
@@ -226,9 +228,9 @@ void
 	remove_session_from_hash(session->name.data, session->name.len);
 	ngx_close_connection(session->connection);
 	ngx_destroy_pool(session->pool);
-	if (s->out_pool) {
-		ngx_destroy_pool(s->out_pool);
-		s->out_pool = NULL;
+	if (session->out_pool) {
+		ngx_destroy_pool(session->out_pool);
+		session->out_pool = NULL;
 	}
 }
 
