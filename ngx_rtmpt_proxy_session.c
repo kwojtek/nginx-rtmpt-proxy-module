@@ -229,6 +229,7 @@ void
 	ngx_rtmpt_proxy_destroy_session(ngx_rtmpt_proxy_session_t *session) 
 {
 	remove_session_from_hash(session->name.data, session->name.len);
+	ngx_del_timer(&session->http_timer);
 	ngx_close_connection(session->connection);
 	ngx_destroy_pool(session->pool);
 	if (session->out_pool) {
