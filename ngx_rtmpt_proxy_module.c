@@ -303,7 +303,8 @@ static void
 	ngx_chain_t 				*cl, *in = r->request_body->bufs;
 	ngx_buf_t 					*b;
 	ngx_uint_t					bytes_received=0;
-	ngx_str_t					sessionid;	
+	ngx_str_t					sessionid;
+	ngx_uint_t					sequence=0;	
     ngx_rtmpt_proxy_loc_conf_t  *plcf;
 
 	
@@ -321,16 +322,21 @@ static void
 		
 		sessionid.data=r->uri.data+6;
 		for (sessionid.len=0,c=sessionid.data;*c!='/' || sessionid.len+6==r->uri.len;sessionid.len++,c++);
-		if (*c!='/') sessionid.data=NULL;
+		if (*c!='/') {
+			sessionid.data=NULL;
+		} else if (r->uri.len-(sessionid.len+7)>0) {
+			sequence = ngx_atoi(r->uri.data+sessionid.len+7, r->uri.len-(sessionid.len+7));
+		}
+		
+		
 	}
-	//TODO: check sequence ofter URI
-	
 	
 	if (!sessionid.data) {
 		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,"Cannot find session ID for URI=%V", &r->uri);
 		ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
 		return;
 	}
+	
 	
 	s = ngx_rtmpt_proxy_get_session(&sessionid);
 	
@@ -339,6 +345,13 @@ static void
 		ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
 		return;
 	}
+	
+	if (s->sequence != sequence) {
+		ngx_log_error(NGX_LOG_ERR, s->log, 0, "RTMPT: sequence error %lu and %lu",s->sequence, sequence);
+		ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
+		return;
+	}
+	s->sequence++;
 	
 	ngx_add_timer(&s->http_timer, plcf->http_timeout);
 		

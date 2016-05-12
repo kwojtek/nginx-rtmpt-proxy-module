@@ -14,9 +14,7 @@ extern char ngx_rtmpt_proxy_intervals_def[];
 
 
 typedef struct ngx_rtmpt_proxy_session_s {
-  ngx_buf_t 			*buffer_http;
-  ngx_buf_t 			*buffer_rtmp;
-  int					sock;
+
   unsigned long long 	sequence;
   ngx_pool_t			*pool,*out_pool;
   ngx_log_t				*log;
@@ -48,8 +46,6 @@ typedef struct ngx_rtmpt_proxy_session_s {
   
   struct ngx_rtmpt_proxy_session_s *next,*prev;
   
-  ngx_chain_t			*to_rtmp;
-  ngx_chain_t			*from_rtmp;
   ngx_connection_t      *connection;
   
   

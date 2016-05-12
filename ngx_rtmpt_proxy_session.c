@@ -151,8 +151,6 @@ ngx_rtmpt_proxy_session_t
 	session->log = plcf->log;
 	session->pool = pool;
 	session->sequence = 0;   
-	session->from_rtmp = NULL;
-	session->to_rtmp = NULL;
 	session->on_finish_send = NULL;
 	session->chain_from_http_request = NULL;   
 	session->chain_from_nginx = NULL;
