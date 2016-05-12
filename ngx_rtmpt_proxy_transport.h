@@ -3,8 +3,8 @@
  * Wojtek Kosak <wkosak@gmail.com>
  */
 
-#ifndef _NGX_RTMPT_SEND_H_INCLUDED_
-#define _NGX_RTMPT_SEND_H_INCLUDED_
+#ifndef _NGX_RTMPT_PROXY_TRANSPORT_H_INCLUDED_
+#define _NGX_RTMPT_PROXY_TRANSPORT_H_INCLUDED_
 
 
 #include <ngx_config.h>

@@ -3,7 +3,7 @@
  * Wojtek Kosak <wkosak@gmail.com>
  */
 
-
+   
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
@@ -11,16 +11,15 @@
 
 #include "ngx_rtmpt_proxy_session.h"
 #include "ngx_rtmpt_proxy_module.h"
-#include "ngx_rtmpt_send.h"
+#include "ngx_rtmpt_proxy_transport.h"
 
 
 void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 	ngx_connection_t           			*c;
 	ngx_rtmpt_proxy_session_t           *s;
-	int 								n;
+	ngx_int_t							n;
 	ngx_http_request_t					*r;
-	
-	unsigned char 						buffer[8192];
+	u_char 								buffer[8192];
 	
 	
 	c = ev->data;
@@ -85,7 +84,7 @@ void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 	
 		} else {
 			if (n == NGX_ERROR || n == 0) {
-				ngx_log_error(NGX_LOG_ERR, s->log, 0, "rtmpt/read: error during read - finealizing session");
+				ngx_log_error(NGX_LOG_INFO, s->log, 0, "RTMPT: closing session read from rtmp failed id=%V",&s->name);
 				ngx_rtmpt_proxy_destroy_session(s);
 				return;
 			}
@@ -101,10 +100,7 @@ void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 void ngx_rtmpt_send_chain_to_rtmp(ngx_event_t *wev) {
 	ngx_connection_t           	    *c;
 	ngx_rtmpt_proxy_session_t       *s;
-	int 							n;
-	int sent=0;
-	int size=0;
-	ngx_chain_t *ch;
+	ngx_int_t						n;
 
 	c = wev->data;
 	s = c->data;
@@ -126,7 +122,8 @@ void ngx_rtmpt_send_chain_to_rtmp(ngx_event_t *wev) {
 	
 	
 	if (wev->timedout) {
-		ngx_log_error(NGX_LOG_INFO, c->log, NGX_ETIMEDOUT, "rtmpt/send: rtmp server timed out");
+		ngx_log_error(NGX_LOG_INFO, s->log, NGX_ETIMEDOUT, "RTMPT: closing session by timeout to rtmp id=%V",&s->name);
+	
 		c->timedout = 1;
 		ngx_rtmpt_proxy_destroy_session(s);
 		return;
@@ -138,7 +135,7 @@ void ngx_rtmpt_send_chain_to_rtmp(ngx_event_t *wev) {
 
 
 		if (n == NGX_AGAIN || n == 0) {
-			ngx_add_timer(c->write, 1000);//s->timeout);
+			ngx_add_timer(c->write, s->rtmp_timeout);
 			
 			if (ngx_handle_write_event(c->write, 0) != NGX_OK) {
 				ngx_log_error(NGX_LOG_INFO, c->log, NGX_ETIMEDOUT, "rtmpt/send: adding event failed");

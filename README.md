@@ -14,14 +14,19 @@ Download and unpack nginx source then cd to this directory. Next run command:
     make install
 
 ### Configuration 
+
+Basic configuration:
+
     http {
         server {
             listen       EXTERNALIP:80;
 
-	    location ~ (^/fcs/ident2$|^/open/1$|^/idle/.*/.*$|^/send/.*/.*$|^/close/$) {
+            location ~ (^/fcs/ident2$|^/open/1$|^/idle/.*/.*$|^/send/.*/.*$|^/close/$) {
                 rtmpt_proxy on;
                 rtmpt_proxy_target TARGET-RTMP-SERVER.COM:1935;
                 rtmpt_proxy_ident EXTERNALIP;
+                rtmp_timeout 2000; 
+                http_timeout 5000;
                 add_header Cache-Control no-cache;
                 access_log off;
             }    
@@ -34,10 +39,23 @@ It is good practice to add header "Cache-Control no-cache" to disable caching in
 TARGET-RTMP-SERVER.COM:1935 - connection url to rtmp server (for example ngxinx with nginx-rtmp-module).
 EXTERNALIP - your external IP interface. Remeber to set it in "rtmpt_proxy_ident".
 
+rtmp_timeout - timeout in writing to rtmp server - in ms default 2000
+http_time - timeout during waiting for http request - in ms default 5000
+
+Statistic page configuration:
+
+     location /stat {
+       rtmpt_proxy_stat on;
+       rtmpt_proxy_stylesheet stat.xsl;
+     }
+     location /stat.xsl {
+       root /var/www/dirwithstat;
+     }
+
+In location /stat.xsl enter directory where file stat.xsl is located (you can copy this file from module path).
+ 
+
 ### TODO
-* timeout in config
-* stat page
-* check log information on connect/disconnect and on errors
 * eliminate rtmpt_proxy_ident - send 404 instend of 200 - but now it doesn't work
 * add checking proper sequence in idle and send requests
 * ....

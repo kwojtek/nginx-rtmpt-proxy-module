@@ -18,10 +18,14 @@ typedef struct {
     ngx_str_t                     	target;
 	ngx_str_t                     	ident;
 	ngx_log_t						*log;
-	
+	ngx_msec_t						http_timeout;
+	ngx_msec_t						rtmp_timeout;
 	void 							**sessions;
 } ngx_rtmpt_proxy_loc_conf_t;
 
 extern ngx_module_t  ngx_rtmpt_proxy_module;
+extern ngx_uint_t ngx_rtmpt_proxy_sessions_created;
+extern ngx_uint_t ngx_rtmpt_proxy_bytes_from_http;
+extern ngx_uint_t ngx_rtmpt_proxy_bytes_to_http;
 
 #endif

@@ -11,8 +11,9 @@
 
 #include "ngx_rtmpt_proxy_session.h"
 #include "ngx_rtmpt_proxy_module.h"
-#include "ngx_rtmpt_send.h"
-
+#include "ngx_rtmpt_proxy_transport.h"
+#include "ngx_rtmpt_proxy_version.h"
+ 
 static time_t                       rtmpt_proxy_start_time;
 
 static char *ngx_rtmpt_proxy_stat(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
@@ -84,49 +85,136 @@ ngx_module_t  ngx_rtmpt_proxy_stat_module = {
 
 
 static void
+ngx_rtmpt_proxy_stat_output(ngx_http_request_t *r, ngx_chain_t ***lll, void *data, size_t len) {
+	ngx_chain_t *c;
+	ngx_buf_t   *b;
+	
+	
+	if (!len)
+		return;
+
+	c = **lll;
+	if (c && c->buf->last + len > c->buf->end) {
+	    *lll = &c->next;
+	}
+	
+	if (**lll == NULL) {
+		c = ngx_alloc_chain_link(r->pool);
+		if (c == NULL) {
+			ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+			return;
+		}
+		b = ngx_create_temp_buf(r->pool, ngx_max(8192, len));
+		
+		if (b == NULL || b->pos == NULL) {
+			ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+			return;
+		}
+		c->next = NULL;
+		c->buf = b;
+		**lll = c;
+	};	
+	
+	b = (**lll)->buf;
+	
+	b->last = ngx_cpymem(b->last, data, len);
+}
+
+#define NGX_RTMPT_PROXY_STAT(data, len)    ngx_rtmpt_proxy_stat_output(r, lll, data, len)
+#define NGX_RTMPT_PROXY_STAT_L(s)	NGX_RTMPT_PROXY_STAT((s), sizeof(s) - 1)
+
+
+static void
 	ngx_rtmpt_proxy_stat_get(ngx_http_request_t *r)
 {
-	ngx_chain_t   				*out_chain;
-	ngx_int_t					rc;
-	ngx_buf_t    				*out_b;
 	ngx_uint_t					os=0;
     ngx_rtmpt_proxy_stat_loc_conf_t  *plcf;
+	ngx_chain_t                    *cl, *l, **ll, ***lll;
+	static u_char                   buf[1024];
+	ngx_rtmpt_proxy_session_t		**sessions,*s;
+	ngx_uint_t						sessions_hs,i;
+
 
 	
     plcf = ngx_http_get_module_loc_conf(r, ngx_rtmpt_proxy_stat_module);
- 
-	out_chain = ngx_alloc_chain_link(r->pool);
-	if (!out_chain) {
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,"Failed to allocate response chain");
+	if (!plcf) {
 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+		return;
 	}
-	out_b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
+	cl = NULL;
+	ll = &cl;
+	lll = &ll;
 	
-	if (!out_b) {
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "Failed to allocate response buffer");
-		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+	NGX_RTMPT_PROXY_STAT_L("<?xml version=\"1.0\" encoding=\"utf-8\" ?>\r\n");
+	if (plcf->stylesheet.len) {
+		NGX_RTMPT_PROXY_STAT_L("<?xml-stylesheet type=\"text/xsl\" href=\"");
+		NGX_RTMPT_PROXY_STAT(plcf->stylesheet.data, plcf->stylesheet.len);
+		NGX_RTMPT_PROXY_STAT_L("\" ?>\r\n");
 	}
+	NGX_RTMPT_PROXY_STAT_L("<rtmpt>\r\n");
+	NGX_RTMPT_PROXY_STAT_L("<ngx_version>" NGINX_VERSION "</ngx_version>\r\n");
+	NGX_RTMPT_PROXY_STAT_L("<ngx_rtmpt_proxy_version>" NGINX_RTMPT_PROXY_VERSION "</ngx_rtmpt_proxy_version>\r\n");
+	NGX_RTMPT_PROXY_STAT_L("<uptime>");
+	NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%T", ngx_cached_time->sec - rtmpt_proxy_start_time) - buf);
+	NGX_RTMPT_PROXY_STAT_L("</uptime>\r\n");
+	NGX_RTMPT_PROXY_STAT_L("<sessions_created>");
+	NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%ui",ngx_rtmpt_proxy_sessions_created) - buf);
+	NGX_RTMPT_PROXY_STAT_L("</sessions_created>\r\n");	
+	NGX_RTMPT_PROXY_STAT_L("<bytes_from_http>");
+	NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%ui",ngx_rtmpt_proxy_bytes_from_http) - buf);	
+	NGX_RTMPT_PROXY_STAT_L("</bytes_from_http>");
+	NGX_RTMPT_PROXY_STAT_L("<bytes_to_http>");
+	NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%ui",ngx_rtmpt_proxy_bytes_to_http) - buf);
+	NGX_RTMPT_PROXY_STAT_L("</bytes_to_http>");
+	
+	sessions=ngx_rtmpt_proxy_session_getall(&sessions_hs);
+	NGX_RTMPT_PROXY_STAT_L("<sessions>\r\n");
+	for (i=0;i<sessions_hs;i++) {
+		for (s=sessions[i];s;s=s->next) {
+			NGX_RTMPT_PROXY_STAT_L("<session>");
+			NGX_RTMPT_PROXY_STAT_L("<id>");
+			NGX_RTMPT_PROXY_STAT(s->name.data, s->name.len);
+			NGX_RTMPT_PROXY_STAT_L("</id>");
+			NGX_RTMPT_PROXY_STAT_L("<uptime>");
+			NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%T", ngx_cached_time->sec - s->created_at) - buf);
+			NGX_RTMPT_PROXY_STAT_L("</uptime>");
+			NGX_RTMPT_PROXY_STAT_L("<create_ip>");
+			NGX_RTMPT_PROXY_STAT(s->create_request_ip.data,s->create_request_ip.len);
+			NGX_RTMPT_PROXY_STAT_L("</create_ip>");
+			NGX_RTMPT_PROXY_STAT_L("<target_url>");
+			NGX_RTMPT_PROXY_STAT(s->target_url.data,s->target_url.len);
+			NGX_RTMPT_PROXY_STAT_L("</target_url>");
+			NGX_RTMPT_PROXY_STAT_L("<requests_count>");
+			NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%ui",s->http_requests_count) - buf);
+			NGX_RTMPT_PROXY_STAT_L("</requests_count>");
+			NGX_RTMPT_PROXY_STAT_L("<bytes_from_http>");
+			NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%ui",s->bytes_from_http) - buf);
+			NGX_RTMPT_PROXY_STAT_L("</bytes_from_http>");
+			NGX_RTMPT_PROXY_STAT_L("<bytes_to_http>");
+			NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%ui",s->bytes_to_http) - buf);
+			NGX_RTMPT_PROXY_STAT_L("</bytes_to_http>");
+			NGX_RTMPT_PROXY_STAT_L("</session>\r\n");
+		}
+	}
+	NGX_RTMPT_PROXY_STAT_L("</sessions>\r\n");
+	
+	NGX_RTMPT_PROXY_STAT_L("</rtmpt>\r\n");
 		
-	os = 100;
-	char *ans=strdup("odpowiedz");
-	os=strlen(ans);
+		
+	os = 0;
+	for (l = cl; l; l = l->next) {
+	    os += (l->buf->last - l->buf->pos);
+	}
 	
-	out_chain->next=NULL;
-	out_chain->buf=out_b;
-	
-	out_b->memory = 1;
-	out_b->last_buf = 1;
-	out_b->pos = out_b->last = ans;
-	
-	out_b->last+=os;
-	
-
 	r->headers_out.status = NGX_HTTP_OK;
-	ngx_str_set(&r->headers_out.content_type, "text/plain");
+	ngx_str_set(&r->headers_out.content_type, "text/xml");
 	r->headers_out.content_length_n = os;
 	
+	(*ll)->buf->last_buf = 1;
 	ngx_http_send_header(r);
-	ngx_http_finalize_request(r, ngx_http_output_filter(r, out_chain) );
+	
+	ngx_http_finalize_request(r, ngx_http_output_filter(r, cl) );
+	
 }
 
 

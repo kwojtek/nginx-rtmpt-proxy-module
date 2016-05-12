@@ -11,7 +11,7 @@ HTTP_MODULES="$HTTP_MODULES                                 \
 NGX_ADDON_SRCS="$NGX_ADDON_SRCS                             \
                 $ngx_addon_dir/ngx_rtmpt_proxy_module.c       \
 		$ngx_addon_dir/ngx_rtmpt_proxy_session.c			\
-		$ngx_addon_dir/ngx_rtmpt_send.c \
+		$ngx_addon_dir/ngx_rtmpt_proxy_transport.c \
 		$ngx_addon_dir/ngx_rtmpt_proxy_stat.c \
                 "
 CFLAGS="$CFLAGS -I$ngx_addon_dir "

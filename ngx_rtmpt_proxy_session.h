@@ -21,6 +21,14 @@ typedef struct ngx_rtmpt_proxy_session_s {
   ngx_pool_t			*pool,*out_pool;
   ngx_log_t				*log;
   
+  time_t				created_at;
+  ngx_uint_t			http_requests_count;
+  ngx_str_t				create_request_ip;
+  ngx_str_t				target_url;
+  ngx_uint_t			bytes_from_http;
+  ngx_uint_t			bytes_to_http;
+  ngx_msec_t			rtmp_timeout;
+  
   ngx_str_t				name;
   time_t				interval_check_time;
   u_char				interval_check_att;
@@ -56,7 +64,7 @@ typedef struct {
 
 buffer_t *from_rtmp, *to_rtmp;
 
-
+ngx_rtmpt_proxy_session_t **ngx_rtmpt_proxy_session_getall(ngx_uint_t *hs);
 ngx_rtmpt_proxy_session_t *ngx_rtmpt_proxy_create_session(ngx_http_request_t *r);
 ngx_rtmpt_proxy_session_t *ngx_rtmpt_proxy_get_session(ngx_str_t *id);
 void ngx_rtmpt_proxy_destroy_session(ngx_rtmpt_proxy_session_t *session);
