@@ -166,6 +166,7 @@ static void
 	NGX_RTMPT_PROXY_STAT_L("<bytes_to_http>");
 	NGX_RTMPT_PROXY_STAT(buf, ngx_sprintf(buf, "%ui",ngx_rtmpt_proxy_bytes_to_http) - buf);
 	NGX_RTMPT_PROXY_STAT_L("</bytes_to_http>");
+	NGX_RTMPT_PROXY_STAT_L("<built>" __DATE__ " " __TIME__ "</built>\r\n");
 	
 	sessions=ngx_rtmpt_proxy_session_getall(&sessions_hs);
 	NGX_RTMPT_PROXY_STAT_L("<sessions>\r\n");

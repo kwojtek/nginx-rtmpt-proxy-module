@@ -19,6 +19,9 @@
             <td ><b>nginx ver.:</b></td><td><xsl:value-of select="rtmpt/ngx_version"/></td>
             <td ><b>rtmpt mod. ver.:</b></td><td><xsl:value-of select="rtmpt/ngx_rtmpt_proxy_version" /></td>
             </tr></table> 
+	    <table><tr>
+            <td><b>built:</b></td><td><xsl:value-of select="rtmpt/built" /></td>
+            </tr></table>
 
         </body>
     </html>
