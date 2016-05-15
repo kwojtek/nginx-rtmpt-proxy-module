@@ -8,6 +8,7 @@
 #include <ngx_core.h>
 #include <ngx_http.h>
 #include <nginx.h>
+#include <stdbool.h>
 
 #include "ngx_rtmpt_proxy_session.h"
 #include "ngx_rtmpt_proxy_module.h"
@@ -18,13 +19,11 @@ void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 	ngx_connection_t           			*c;
 	ngx_rtmpt_proxy_session_t           *s;
 	ngx_int_t							n;
-	ngx_http_request_t					*r;
 	u_char 								buffer[8192];
 	
 	
 	c = ev->data;
 	s = c->data;
-	r = s->actual_request;
 	
 	
 	if (c->destroyed) {
