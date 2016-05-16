@@ -3,8 +3,6 @@
 ### Information
 Simple nginx module with implementation of RTMPT protocol. RTMPT protocol is a HTTP tunnel for RTMP. It communicates over HTTP and passes data using HTTP POST requests. 
 
-ATTENTION! it is alpha state. Do not use on production :).
-
 ### Build
 
 Download and unpack nginx source then cd to this directory. Next run command:
@@ -25,8 +23,8 @@ Basic configuration:
                 rtmpt_proxy on;
                 rtmpt_proxy_target TARGET-RTMP-SERVER.COM:1935;
                 rtmpt_proxy_ident EXTERNALIP;
-                rtmp_timeout 2000; 
-                http_timeout 5000;
+                rtmp_timeout 2; 
+                http_timeout 5;
                 add_header Cache-Control no-cache;
                 access_log off;
             }    
@@ -39,8 +37,8 @@ It is good practice to add header "Cache-Control no-cache" to disable caching in
 TARGET-RTMP-SERVER.COM:1935 - connection url to rtmp server (for example ngxinx with nginx-rtmp-module).
 EXTERNALIP - your external IP interface. Remeber to set it in "rtmpt_proxy_ident".
 
-rtmp_timeout - timeout in writing to rtmp server - in ms default 2000
-http_time - timeout during waiting for http request - in ms default 5000
+rtmp_timeout - timeout in writing to rtmp server - in sec. default 2
+http_time - timeout during waiting for http request - in sec. default 5
 
 Statistic page configuration:
 
@@ -57,6 +55,5 @@ In location /stat.xsl enter directory where file stat.xsl is located (you can co
 
 ### TODO
 * eliminate rtmpt_proxy_ident - send 404 instend of 200 - but now it doesn't work
-* add checking proper sequence in idle and send requests
 * ....
 
