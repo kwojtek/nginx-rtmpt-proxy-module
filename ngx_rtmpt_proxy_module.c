@@ -39,19 +39,13 @@ static ngx_command_t  ngx_rtmpt_proxy_module_commands[] = {
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_rtmpt_proxy_loc_conf_t, target),
         NULL },
-  { ngx_string("rtmpt_proxy_ident"),
-		NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-		ngx_conf_set_str_slot,
-		NGX_HTTP_LOC_CONF_OFFSET,
-		offsetof(ngx_rtmpt_proxy_loc_conf_t, ident),
-		NULL },
- { ngx_string("rtmp_timeout"),
+ { ngx_string("rtmpt_proxy_rtmp_timeout"),
         NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
         ngx_conf_set_msec_slot,
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_rtmpt_proxy_loc_conf_t, rtmp_timeout),
         NULL },
-  { ngx_string("http_timeout"),
+  { ngx_string("rtmpt_proxy_http_timeout"),
         NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
         ngx_conf_set_msec_slot,
         NGX_HTTP_LOC_CONF_OFFSET,
@@ -238,58 +232,6 @@ static void
 	
 	ngx_log_error(NGX_LOG_INFO, s->log, 0, "RTMPT: closing session by client request id=%V for ip=%V",&s->name, &r->connection->addr_text);
 	
-	
-	ngx_http_send_header(r);
-	ngx_http_finalize_request(r, ngx_http_output_filter(r, out_chain) );
-}
-
-
-static void
-	ngx_rtmpt_proxy_ident(ngx_http_request_t *r)
-{
-	ngx_chain_t   				*out_chain;
-	ngx_buf_t    				*out_b;
-	ngx_uint_t					os=0;
-    ngx_rtmpt_proxy_loc_conf_t  *plcf;
-
-	
-    plcf = ngx_http_get_module_loc_conf(r, ngx_rtmpt_proxy_module);
- 	if (!plcf) {
- 		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-		return;
- 	}
- 
-	out_chain = ngx_alloc_chain_link(r->pool);
-	if (!out_chain) {
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,"Failed to allocate response chain");
-		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-		return;
-	}
-	out_b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
-	
-	if (!out_b) {
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "Failed to allocate response buffer");
-		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-		return;
-	}
-	
-
-	
-	os = plcf->ident.len;
-	
-	out_chain->next=NULL;
-	out_chain->buf=out_b;
-	
-	out_b->memory = 1;
-	out_b->last_buf = 1;
-	out_b->pos = out_b->last = plcf->ident.data;
-	
-	out_b->last+=os;
-	
-
-	r->headers_out.status = NGX_HTTP_OK;
-	ngx_str_set(&r->headers_out.content_type, "text/plain");
-	r->headers_out.content_length_n = os;
 	
 	ngx_http_send_header(r);
 	ngx_http_finalize_request(r, ngx_http_output_filter(r, out_chain) );
@@ -502,12 +444,6 @@ static ngx_int_t
         return NGX_DECLINED;
     }
 
-	if (strncasecmp("/fcs/ident2",(char *)r->uri.data,11) == 0) {
-		int rc = ngx_http_read_client_request_body ( r , ngx_rtmpt_proxy_ident ) ;
-  	  	if ( rc >= NGX_HTTP_SPECIAL_RESPONSE ) return rc;
-		return NGX_DONE;
-	}
-
 	if (strncasecmp("/open/1",(char *)r->uri.data,7) == 0) {
 		int rc = ngx_http_read_client_request_body ( r , ngx_rtmpt_proxy_open ) ;
   	  	if ( rc >= NGX_HTTP_SPECIAL_RESPONSE ) return rc;
@@ -571,7 +507,6 @@ static char *
 
     ngx_conf_merge_bitmask_value(conf->proxy_flag, prev->proxy_flag, 0);
     ngx_conf_merge_str_value(conf->target, prev->target, "localhost:1935");
-    ngx_conf_merge_str_value(conf->ident, prev->ident, "127.0.0.1");
 	ngx_conf_merge_msec_value(conf->rtmp_timeout, prev->rtmp_timeout, 2000);
 	ngx_conf_merge_msec_value(conf->http_timeout, prev->http_timeout, 5000);
  

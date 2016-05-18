@@ -17,28 +17,33 @@ Basic configuration:
 
     http {
         server {
-            listen       EXTERNALIP:80;
+            listen       80;
 
-            location ~ (^/fcs/ident2$|^/open/1$|^/idle/.*/.*$|^/send/.*/.*$|^/close/$) {
+            location ~ (^/open/1$|^/idle/.*/.*$|^/send/.*/.*$|^/close/$) {
                 rtmpt_proxy on;
                 rtmpt_proxy_target TARGET-RTMP-SERVER.COM:1935;
-                rtmpt_proxy_ident EXTERNALIP;
-                rtmp_timeout 2; 
-                http_timeout 5;
+                rtmpt_proxy_rtmp_timeout 2; 
+                rtmpt_proxy_http_timeout 5;
+
                 add_header Cache-Control no-cache;
                 access_log off;
             }    
+            location /fcs/ident2 {
+                return 200;
+            }
        }
     }
 
-Directive 'location' fits all nessesery uri addresses for the rtmpt protocol. You can use other location for standard http requests.
-It is good practice to add header "Cache-Control no-cache" to disable caching in user browser and for me disabling access_log could keep clear your access log.
+Directive 'location' with regexp fits all nessesery uri addresses for the rtmpt protocol. You can use other location for standard http requests.
+Remember to add header "Cache-Control no-cache" to disable caching in user browser. Adding "access_log off" should help you keep clear access log.
  
 TARGET-RTMP-SERVER.COM:1935 - connection url to rtmp server (for example ngxinx with nginx-rtmp-module).
-EXTERNALIP - your external IP interface. Remeber to set it in "rtmpt_proxy_ident".
 
-rtmp_timeout - timeout in writing to rtmp server - in sec. default 2
-http_time - timeout during waiting for http request - in sec. default 5
+rtmpt_proxy_rtmp_timeout - timeout in writing to rtmp server - in sec. default 2
+rtmpt_proxy_http_time - timeout during waiting for http request - in sec. default 5
+
+Additional location with '/fcs/ident2' is mandatory. For most usage it should return 200 without any content. 
+Do not disable keep alive connection in configuration.
 
 Statistic page configuration:
 
@@ -54,6 +59,4 @@ In location /stat.xsl enter directory where file stat.xsl is located (you can co
  
 
 ### TODO
-* eliminate rtmpt_proxy_ident - send 404 instend of 200 - but now it doesn't work
-* ....
-
+* tests

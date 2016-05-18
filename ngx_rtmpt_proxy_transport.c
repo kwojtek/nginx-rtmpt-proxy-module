@@ -14,12 +14,13 @@
 #include "ngx_rtmpt_proxy_module.h"
 #include "ngx_rtmpt_proxy_transport.h"
 
+#define NGX_RTMPT_PROXY_BUFFER_SIZE 8192
 
 void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 	ngx_connection_t           			*c;
 	ngx_rtmpt_proxy_session_t           *s;
 	ngx_int_t							n;
-	u_char 								buffer[8192];
+	u_char 								buffer[NGX_RTMPT_PROXY_BUFFER_SIZE];
 	
 	
 	c = ev->data;
@@ -35,7 +36,7 @@ void ngx_rtmpt_read_from_rtmp(ngx_event_t *ev) {
 	while (true) {	
 		int	first_chain_created = 0;
 		
-		n = c->recv(c, buffer, 8192);
+		n = c->recv(c, buffer, NGX_RTMPT_PROXY_BUFFER_SIZE);
 
 		ngx_log_debug1(NGX_LOG_DEBUG, s->log, 0, "rtmpt/read: received %i bytes", n);
 	

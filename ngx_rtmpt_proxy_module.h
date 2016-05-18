@@ -16,7 +16,6 @@ typedef struct {
 	ngx_http_upstream_conf_t       upstream;
     ngx_uint_t			   			proxy_flag;
     ngx_str_t                     	target;
-	ngx_str_t                     	ident;
 	ngx_log_t						*log;
 	ngx_msec_t						http_timeout;
 	ngx_msec_t						rtmp_timeout;
