@@ -1,20 +1,29 @@
 ngx_addon_name="ngx_rtmpt_proxy_module"
 
-HTTP_MODULES="$HTTP_MODULES                                 \
-                ngx_rtmpt_proxy_module \
-				ngx_rtmpt_proxy_stat_module                       \
-                "
-
-
-
-
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS                             \
-                $ngx_addon_dir/ngx_rtmpt_proxy_module.c       \
-		$ngx_addon_dir/ngx_rtmpt_proxy_session.c			\
+RTMPT_PROXY_MODULES="ngx_rtmpt_proxy_module \
+		ngx_rtmpt_proxy_stat_module"
+RTMPT_PROXY_SRCS="$ngx_addon_dir/ngx_rtmpt_proxy_module.c \
+		$ngx_addon_dir/ngx_rtmpt_proxy_session.c \
 		$ngx_addon_dir/ngx_rtmpt_proxy_transport.c \
-		$ngx_addon_dir/ngx_rtmpt_proxy_stat.c \
-                "
+		$ngx_addon_dir/ngx_rtmpt_proxy_stat.c"
+ngx_module_deps="$ngx_addon_dir/ngx_rtmpt_proxy_module.h \
+		$ngx_addon_dir/ngx_rtmpt_proxy_transport.h \
+		$ngx_addon_dir/ngx_rtmpt_proxy_session.h \
+		$ngx_addon_dir//ngx_rtmpt_proxy_version.h"
+
+
 CFLAGS="$CFLAGS -I$ngx_addon_dir "
+
+if [ $ngx_module_link = DYNAMIC ] ; then
+    ngx_module_name=$RTMPT_PROXY_MODULES
+    ngx_module_srcs=$RTMPT_PROXY_SRCS
+    . auto/module
+elif [ $ngx_module_link = ADDON ] ; then
+    ngx_module_type=HTTP
+    ngx_module_name=$RTMPT_PROXY_MODULES
+    ngx_module_srcs=$RTMPT_PROXY_SRCS
+    . auto/module
+fi
 
 USE_OPENSSL=YES
 
