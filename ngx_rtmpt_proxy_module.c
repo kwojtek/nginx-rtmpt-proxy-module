@@ -413,11 +413,12 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 		s->interval_check_count = 0;
 		s->interval_check_time=check_time;
 	}
-	
+
+
 	//if no data
-	if ( os == 1 ) 
-		s->interval_check_att++; 
-	else {
+	if ( os == 1 ) { 
+		 if (strncasecmp("/idle/",(char *)r->uri.data,6) == 0) s->interval_check_att++; 
+	} else {
 		s->bytes_to_http += (os-1);
 		ngx_rtmpt_proxy_bytes_to_http += (os-1);
 	}
