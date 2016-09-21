@@ -19,7 +19,7 @@ Basic configuration:
         server {
             listen       80;
 
-            location ~ (^/open/1$|^/idle/.*/.*$|^/send/.*/.*$|^/close/$) {
+            location ~ (^/open/1$|^/idle/.*/.*$|^/send/.*/.*$|^/close/.*/.*$) {
                 rtmpt_proxy on;
                 rtmpt_proxy_target TARGET-RTMP-SERVER.COM:1935;
                 rtmpt_proxy_rtmp_timeout 2; 
@@ -58,5 +58,3 @@ Statistic page configuration:
 In location /stat.xsl enter directory where file stat.xsl is located (you can copy this file from module path).
  
 
-### TODO
-* tests
