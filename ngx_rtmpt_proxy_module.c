@@ -174,72 +174,63 @@ static void
 static void
 	ngx_rtmpt_proxy_close(ngx_http_request_t *r)
 {
-	ngx_chain_t   				*out_chain;
-	ngx_rtmpt_proxy_session_t	*s;
-	ngx_buf_t    				*out_b;
-	u_char						*buffer;
-	ngx_uint_t					os=0;
+	ngx_rtmpt_proxy_session_t		*s;
+	ngx_chain_t                             out;
+	ngx_buf_t                               *b = NULL;
 	ngx_http_cleanup_t 			*cuh;
-	
-	
-	s = ngx_rtmpt_proxy_create_session(r);
-	if (!s) {
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, 
-		"Failed in getting session");
-		
-		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-		return;
-	}
-	
-	
-	out_chain = ngx_alloc_chain_link(r->pool);
-	if (!out_chain) {
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,"Failed to allocate response chain");
-		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-		return;
-	}
-	out_b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
-	
-	if (!out_b) {
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "Failed to allocate response buffer");
-		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-		return;
-	}
-	
-	buffer = ngx_pcalloc(r->pool, 1);
-	if (!buffer) {
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "Failed to allocate response one byte's buffer");
-		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
-		return;
-	}
-	*buffer = 0;
-	os = 1;
-	
-	out_chain->next=NULL;
-	out_chain->buf=out_b;
-	
-	out_b->memory = 1;
-	out_b->last_buf = 1;
-	out_b->pos = out_b->last = buffer;
-	
-	out_b->last+=1;
-	
+	ngx_str_t                               sessionid;	
+    
+        sessionid.data=NULL;
+        sessionid.len=0;
 
-	r->headers_out.status = NGX_HTTP_OK;
-	ngx_str_set(&r->headers_out.content_type, "application/x-fcs");
-	r->headers_out.content_length_n = os;
-	
-	
-	cuh=ngx_http_cleanup_add(r,0);
-	cuh->handler=(ngx_http_cleanup_pt)ngx_rtmpt_proxy_destroy_session; 
-	cuh->data=s;
-	
-	
-	ngx_log_error(NGX_LOG_INFO, s->log, 0, "RTMPT: closing session by client request id=%V for ip=%V",&s->name, &r->connection->addr_text);
-	
-	
-	ngx_http_send_header(r);
-	ngx_http_finalize_request(r, ngx_http_output_filter(r, out_chain) );
+        if (*(r->uri.data+5)=='/') {
+                u_char *c;
+
+                sessionid.data=r->uri.data+6;
+                for (sessionid.len=0,c=sessionid.data;*c!='/' || sessionid.len+6==r->uri.len;sessionid.len++,c++);
+                if (*c!='/') {
+                        sessionid.data=NULL;
+                }
+        }
+
+        if (!sessionid.data) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,"Cannot find session ID for URI=%V", &r->uri);
+                ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
+                return;
+        }
+
+
+        s = ngx_rtmpt_proxy_get_session(&sessionid);
+
+        if (!s) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,"Cannot find session for URI=%V", &r->uri);
+                ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
+                return;
+        } else {
+		ngx_log_error(NGX_LOG_INFO, s->log, 0, "RTMPT: closing session id=%V",&s->name, &r->connection->addr_text);
+		cuh=ngx_http_cleanup_add(r,0);
+        	cuh->handler=(ngx_http_cleanup_pt)ngx_rtmpt_proxy_destroy_session;
+        	cuh->data=s;
+	}
+        
+	b->pos = b->last = ngx_pcalloc(r->pool, 2);
+        bzero(b->pos,1);
+        b->last+=1;
+
+        b->memory = 1;
+        b->last_buf = 1;
+
+        out.buf = b;
+        out.next = NULL;
+
+
+
+        r->headers_out.status = NGX_HTTP_OK;
+        ngx_str_set(&r->headers_out.content_type, "application/x-fcs");
+        r->headers_out.content_length_n = b->last-b->pos;
+
+        ngx_http_send_header(r);
+        ngx_http_finalize_request(r, ngx_http_output_filter(r, &out) );
 }
 
 
@@ -252,12 +243,10 @@ static void
 	ngx_uint_t					bytes_received=0;
 	ngx_str_t					sessionid;
 	ngx_uint_t					sequence=0;	
-    ngx_rtmpt_proxy_loc_conf_t  *plcf;
+    	ngx_rtmpt_proxy_loc_conf_t  *plcf;
 
 
-ngx_log_error(NGX_LOG_INFO, r->connection->log, 0, "RTMPT: proxy precess");
-	
-    plcf = ngx_http_get_module_loc_conf(r, ngx_rtmpt_proxy_module);
+    	plcf = ngx_http_get_module_loc_conf(r, ngx_rtmpt_proxy_module);
  	if (!plcf) {
  		ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
 		return;
@@ -276,8 +265,6 @@ ngx_log_error(NGX_LOG_INFO, r->connection->log, 0, "RTMPT: proxy precess");
 		} else if (r->uri.len-(sessionid.len+7)>0) {
 			sequence = ngx_atoi(r->uri.data+sessionid.len+7, r->uri.len-(sessionid.len+7));
 		}
-		
-		
 	}
 	
 	if (!sessionid.data) {
