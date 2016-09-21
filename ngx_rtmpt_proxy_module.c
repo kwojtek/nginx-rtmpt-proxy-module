@@ -295,7 +295,7 @@ ngx_log_error(NGX_LOG_INFO, r->connection->log, 0, "RTMPT: proxy precess");
 		return;
 	}
         
-	if (s->sequence != sequence || s->in_progress) {
+	if (s->sequence != sequence) {
 		int i;
 		ngx_log_error(NGX_LOG_ERR, s->log, 0, "RTMPT: sequence error %lu and %lu for URL=%V",s->sequence, sequence,&r->uri);
 		for (i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
@@ -341,7 +341,7 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 	
 	ngx_chain_t   				*out_chain;
 	ngx_http_request_t 			*r;
-	ngx_uint_t					os = 0;
+	ngx_uint_t					os = 0, i = 0;
 	time_t	check_time;
 
 	r=s->actual_request;
@@ -442,7 +442,7 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 	ngx_http_send_header(r);
 	ngx_http_finalize_request(r, ngx_http_output_filter(r, out_chain));
 
-        for (int i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
+        for (i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
           if (s->waiting_requests[i] && s->waiting_requests_sequence[i]==s->sequence) {
              ngx_http_request_t *waiting_request = s->waiting_requests[i];
              s->waiting_requests[i]=NULL;
