@@ -3,6 +3,9 @@
  * Wojtek Kosak <wkosak@gmail.com>
  */
 
+  
+
+
 
 #include <ngx_config.h>
 #include <ngx_core.h>
@@ -12,6 +15,8 @@
 #include "ngx_rtmpt_proxy_session.h"
 #include "ngx_rtmpt_proxy_module.h"
 #include "ngx_rtmpt_proxy_transport.h"
+
+
 
 static char *ngx_rtmpt_proxy(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static void *ngx_rtmpt_proxy_create_loc_conf(ngx_conf_t *cf);
@@ -249,6 +254,8 @@ static void
 	ngx_uint_t					sequence=0;	
     ngx_rtmpt_proxy_loc_conf_t  *plcf;
 
+
+ngx_log_error(NGX_LOG_INFO, r->connection->log, 0, "RTMPT: proxy precess");
 	
     plcf = ngx_http_get_module_loc_conf(r, ngx_rtmpt_proxy_module);
  	if (!plcf) {
@@ -287,10 +294,17 @@ static void
 		ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
 		return;
 	}
-	
-	if (s->sequence != sequence) {
-		ngx_log_error(NGX_LOG_ERR, s->log, 0, "RTMPT: sequence error %lu and %lu",s->sequence, sequence);
-		ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
+        
+	if (s->sequence != sequence || s->in_progress) {
+		int i;
+		ngx_log_error(NGX_LOG_ERR, s->log, 0, "RTMPT: sequence error %lu and %lu for URL=%V",s->sequence, sequence,&r->uri);
+		for (i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
+			if (!s->waiting_requests[i]) {
+				s->waiting_requests[i]=r;
+				s->waiting_requests_sequence[i]=sequence;
+				break;
+ 			}
+		}
 		return;
 	}
 	s->sequence++;
@@ -413,20 +427,30 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 		s->interval_check_count = 0;
 		s->interval_check_time=check_time;
 	}
-
-
+	
 	//if no data
-	if ( os == 1 ) { 
-		 if (strncasecmp("/idle/",(char *)r->uri.data,6) == 0) s->interval_check_att++; 
+	if ( os == 1 ) {
+		if (strncasecmp("/idle/",(char *)r->uri.data,6) == 0) s->interval_check_att++; 
 	} else {
 		s->bytes_to_http += (os-1);
 		ngx_rtmpt_proxy_bytes_to_http += (os-1);
 	}
 	
 	s->interval_check_count++;
-	
+
+
 	ngx_http_send_header(r);
 	ngx_http_finalize_request(r, ngx_http_output_filter(r, out_chain));
+
+        for (int i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
+          if (s->waiting_requests[i] && s->waiting_requests_sequence[i]==s->sequence) {
+             ngx_http_request_t *waiting_request = s->waiting_requests[i];
+             s->waiting_requests[i]=NULL;
+	     s->waiting_requests_sequence[i]=0;
+             ngx_rtmpt_proxy_process(waiting_request);
+	     break;
+          }
+        }
 	return;
 	
 error:
@@ -456,6 +480,7 @@ static ngx_int_t
   	  	if ( rc >= NGX_HTTP_SPECIAL_RESPONSE ) return rc;
 		return NGX_DONE;
 	}
+
 	if (strncasecmp("/close/",(char *)r->uri.data,7)==0) {
 		int rc = ngx_http_read_client_request_body ( r , ngx_rtmpt_proxy_close ) ;
   	  	if ( rc >= NGX_HTTP_SPECIAL_RESPONSE ) return rc;

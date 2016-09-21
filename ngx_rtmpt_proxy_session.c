@@ -17,6 +17,7 @@
 ngx_rtmpt_proxy_session_t  *ngx_rtmpt_proxy_sessions_global[RTMPT_HASHMAX];
 
 char ngx_rtmpt_proxy_intervals_def[]={0,0x01, 0x03, 0x05, 0x09, 0x11, 0x21, 0x41,0};
+//char ngx_rtmpt_proxy_intervals_def[]={0,0x01,0};
 
 
 ngx_rtmpt_proxy_session_t **ngx_rtmpt_proxy_session_getall(ngx_uint_t *hs) {
@@ -166,6 +167,7 @@ ngx_rtmpt_proxy_session_t
 	session->create_request_ip.data=ngx_pstrdup(pool,&r->connection->addr_text);
 	session->create_request_ip.len=r->connection->addr_text.len;
 	
+        bzero(session->waiting_requests,NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE*sizeof(ngx_http_request_t *));
 
 	put_session_in_hash(session);
 	
@@ -241,7 +243,18 @@ ngx_rtmpt_proxy_session_t
 void 
 	ngx_rtmpt_proxy_destroy_session(ngx_rtmpt_proxy_session_t *session) 
 {
+	int i;
+
 	remove_session_from_hash(session->name.data, session->name.len);
+
+	for (i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
+		if (session->waiting_requests[i]) {
+			ngx_log_error(NGX_LOG_ERR, session->log, 0, "rtmpt/session: finalize waiting request with 404 %V", &session->waiting_requests[i]->uri);
+			ngx_http_finalize_request(session->waiting_requests[i], NGX_HTTP_NOT_FOUND);
+			session->waiting_requests[i]=NULL;
+		}
+
+	}
 	//ngx_del_timer(&session->http_timer);
 	ngx_close_connection(session->connection);
 	if (session->out_pool) {

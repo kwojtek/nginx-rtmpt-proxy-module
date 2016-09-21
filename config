@@ -14,16 +14,14 @@ ngx_module_deps="$ngx_addon_dir/ngx_rtmpt_proxy_module.h \
 
 CFLAGS="$CFLAGS -I$ngx_addon_dir "
 
-if [ $ngx_module_link = DYNAMIC ] ; then
+if [ "$ngx_module_link" = DYNAMIC ] ; then
     ngx_module_name=$RTMPT_PROXY_MODULES
     ngx_module_srcs=$RTMPT_PROXY_SRCS
     . auto/module
-elif [ $ngx_module_link = ADDON ] ; then
+elif [ "$ngx_module_link" = ADDON ] ; then
     ngx_module_type=HTTP
     ngx_module_name=$RTMPT_PROXY_MODULES
     ngx_module_srcs=$RTMPT_PROXY_SRCS
     . auto/module
 fi
-
-USE_OPENSSL=YES
 

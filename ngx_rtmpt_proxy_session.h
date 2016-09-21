@@ -6,6 +6,7 @@
 #ifndef _NGX_RTMPT_PROXY_SESSION_H_INCLUDED_
 #define _NGX_RTMPT_PROXY_SESSION_H_INCLUDED_
 
+#define NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE 4
 
 #include <ngx_config.h>
 #include <ngx_core.h>
@@ -48,7 +49,9 @@ typedef struct ngx_rtmpt_proxy_session_s {
   
   ngx_connection_t      *connection;
   
-  
+  ngx_http_request_t    *waiting_requests[NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE];
+  unsigned long long    waiting_requests_sequence[NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE];
+
 } ngx_rtmpt_proxy_session_t;
 
 typedef struct {
