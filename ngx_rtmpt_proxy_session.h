@@ -17,6 +17,7 @@ extern char ngx_rtmpt_proxy_intervals_def[];
 typedef struct ngx_rtmpt_proxy_session_s {
 
   unsigned long long 	sequence;
+
   ngx_pool_t			*pool,*out_pool;
   ngx_log_t				*log;
   
@@ -51,6 +52,7 @@ typedef struct ngx_rtmpt_proxy_session_s {
   
   ngx_http_request_t    *waiting_requests[NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE];
   unsigned long long    waiting_requests_sequence[NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE];
+  ngx_int_t		in_process;
 
 } ngx_rtmpt_proxy_session_t;
 

@@ -26,6 +26,8 @@ static ngx_int_t ngx_rtmpt_proxy_handler(ngx_http_request_t *r);
 
 static void ngx_rtmpt_proxy_close(ngx_http_request_t *r);
 static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s);
+static void ngx_rtmpt_proxy_process(ngx_http_request_t *r);
+
 
 static ngx_conf_bitmask_t           ngx_rtmpt_proxy_masks[] = {
     { ngx_string("on"),             1 },
@@ -203,9 +205,7 @@ static void
         s = ngx_rtmpt_proxy_get_session(&sessionid);
 
         if (!s) {
-                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,"Cannot find session for URI=%V", &r->uri);
-                ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
-                return;
+                ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,"Cannot find session for URI=%V", &r->uri);
         } else {
 		ngx_log_error(NGX_LOG_INFO, s->log, 0, "RTMPT: closing session id=%V",&s->name, &r->connection->addr_text);
 		cuh=ngx_http_cleanup_add(r,0);
@@ -233,6 +233,34 @@ static void
         ngx_http_finalize_request(r, ngx_http_output_filter(r, &out) );
 }
 
+static void ngx_rtmpt_proxy_finish_request(unsigned char *session_id) {
+        ngx_int_t 		i=0;
+        ngx_rtmpt_proxy_session_t *s;
+        ngx_str_t		session_str;
+
+	session_str.data=session_id;
+        session_str.len=strlen((char *)session_id);
+
+	s = ngx_rtmpt_proxy_get_session(&session_str);
+
+	if (!s) {
+		return;
+	}
+
+	s->in_process = 0;	
+
+	s->sequence++;
+
+	for (i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
+          if (s->waiting_requests[i] && s->waiting_requests_sequence[i]==s->sequence) {
+             ngx_http_request_t *waiting_request = s->waiting_requests[i];
+             s->waiting_requests[i]=NULL;
+             s->waiting_requests_sequence[i]=0;
+             ngx_rtmpt_proxy_process(waiting_request);
+             break;
+          }
+        }
+}
 
 static void 
 	ngx_rtmpt_proxy_process(ngx_http_request_t *r)
@@ -243,6 +271,7 @@ static void
 	ngx_uint_t					bytes_received=0;
 	ngx_str_t					sessionid;
 	ngx_uint_t					sequence=0;	
+	ngx_http_cleanup_t                      *cuh;
     	ngx_rtmpt_proxy_loc_conf_t  *plcf;
 
 
@@ -281,10 +310,10 @@ static void
 		ngx_http_finalize_request(r, NGX_HTTP_NOT_FOUND);
 		return;
 	}
-        
-	if (s->sequence != sequence) {
+
+	if (s->sequence != sequence || s->in_process) {
 		int i;
-		ngx_log_error(NGX_LOG_ERR, s->log, 0, "RTMPT: sequence error %lu and %lu for URL=%V",s->sequence, sequence,&r->uri);
+		ngx_log_error(NGX_LOG_WARN, s->log, 0, "RTMPT: sequence not in order %l and %l for URL=%V in_process=%i",s->sequence, sequence,&r->uri,s->in_process);
 		for (i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
 			if (!s->waiting_requests[i]) {
 				s->waiting_requests[i]=r;
@@ -294,8 +323,15 @@ static void
 		}
 		return;
 	}
-	s->sequence++;
-	
+	s->in_process=1;
+
+
+	//it is better to set string_id (name in session) as parameter because request could be finished after http timeout 
+        cuh=ngx_http_cleanup_add(r, s->name.len+1 );
+        cuh->handler=(ngx_http_cleanup_pt)ngx_rtmpt_proxy_finish_request;
+        bzero(cuh->data,s->name.len+1);
+        memcpy(cuh->data, s->name.data, s->name.len);
+
 	ngx_add_timer(&s->http_timer, plcf->http_timeout);
 		
 	if (strncasecmp("/send/",(char *)r->uri.data,6) == 0) {
@@ -328,8 +364,8 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 	
 	ngx_chain_t   				*out_chain;
 	ngx_http_request_t 			*r;
-	ngx_uint_t					os = 0, i = 0;
-	time_t	check_time;
+	ngx_uint_t				os = 0;
+	time_t					check_time;
 
 	r=s->actual_request;
 	s->on_finish_send=NULL;	
@@ -357,7 +393,7 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 		s->out_pool=NULL;
 	} else {
 		ngx_buf_t    	*out_b;
-		u_char			*buffer;
+		u_char		*buffer;
 		
 		out_chain = ngx_alloc_chain_link(r->pool);
 		if (!out_chain) {
@@ -429,15 +465,6 @@ static void ngx_rtmpt_finish_proxy_process(ngx_rtmpt_proxy_session_t *s) {
 	ngx_http_send_header(r);
 	ngx_http_finalize_request(r, ngx_http_output_filter(r, out_chain));
 
-        for (i=0;i<NGX_RTMPT_PROXY_REQUESTS_DELAY_SIZE;i++) {
-          if (s->waiting_requests[i] && s->waiting_requests_sequence[i]==s->sequence) {
-             ngx_http_request_t *waiting_request = s->waiting_requests[i];
-             s->waiting_requests[i]=NULL;
-	     s->waiting_requests_sequence[i]=0;
-             ngx_rtmpt_proxy_process(waiting_request);
-	     break;
-          }
-        }
 	return;
 	
 error:
