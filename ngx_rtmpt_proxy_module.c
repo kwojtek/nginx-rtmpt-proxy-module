@@ -185,11 +185,11 @@ static void
         sessionid.data=NULL;
         sessionid.len=0;
 
-        if (*(r->uri.data+5)=='/') {
+        if (*(r->uri.data+6)=='/') {
                 u_char *c;
 
-                sessionid.data=r->uri.data+6;
-                for (sessionid.len=0,c=sessionid.data;*c!='/' || sessionid.len+6==r->uri.len;sessionid.len++,c++);
+                sessionid.data=r->uri.data+7;
+                for (sessionid.len=0,c=sessionid.data;*c!='/' || sessionid.len+7==r->uri.len;sessionid.len++,c++);
                 if (*c!='/') {
                         sessionid.data=NULL;
                 }
