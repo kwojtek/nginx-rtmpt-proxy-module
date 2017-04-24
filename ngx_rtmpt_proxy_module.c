@@ -212,6 +212,16 @@ static void
         	cuh->handler=(ngx_http_cleanup_pt)ngx_rtmpt_proxy_destroy_session;
         	cuh->data=s;
 	}
+
+        b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
+
+        if (!b) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                "Failed to allocate response buffer.");
+
+                ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+                return;
+        }
         
 	b->pos = b->last = ngx_pcalloc(r->pool, 2);
         bzero(b->pos,1);
